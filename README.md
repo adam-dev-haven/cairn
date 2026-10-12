@@ -92,4 +92,4 @@ The Mac and iPhone apps compile the same `Sources/Cairn` folder. [docs/ARCHITECT
 
 ## Credits and licence
 
-Cairn is released under the [MIT licence](LICENSE). Exercise photos and the sources behind the training content are credited in [docs/CREDITS.md](docs/CREDITS.md). Cairn is a logging and planning tool, not medical advice. Stop a session if something hurts.
+Cairn is released under the [MIT licence](LICENSE). The MIT licence covers the source code only. The exercise photographs have their own terms, and they and the sources behind the training content are credited in [docs/CREDITS.md](docs/CREDITS.md). Cairn is a logging and planning tool, not medical advice. Stop a session if something hurts.
