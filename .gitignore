@@ -1,0 +1,20 @@
+# Build output
+.build/
+*.app
+*.ipa
+.swiftpm/
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+project.xcworkspace/
+
+# macOS
+.DS_Store
+
+# Never commit signing material or local configuration
+*.p12
+*.cer
+*.mobileprovision
+*.env
+.env*
