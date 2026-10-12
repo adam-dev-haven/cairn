@@ -476,6 +476,64 @@ enum SelfTest {
             PeerSync.hostCode = savedHost
         }
 
+        // A phone must not be able to choose what the Mac runs or reads: a profile it creates arrives with per-machine settings stripped.
+        do {
+            let host = model(at: "2026-10-01")
+            var evil = Store(plan: DefaultPlan.make())
+            evil.settings.claudePath = "/tmp/not-claude"
+            evil.settings.garminFolder = "/tmp/elsewhere"
+            evil.settings.gymName = "Kept"
+            let id = "feedbeef"
+            let url = ProfileIndex.file(for: id, in: AppModel.dataDirectory())
+            try? FileManager.default.removeItem(at: url)
+            let savedHost = PeerSync.hostCode
+            PeerSync.hostCode = "424242"
+            let request = PeerRequest(key: "424242", profileID: id, profileName: "Guest", device: "selftest", store: evil)
+            let reply = MainActor.assumeIsolated { host.answerPeer(request, macName: "selftest") }
+            let written = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Store.self, from: $0) }
+            check(reply.ok && written != nil, "a new profile from a paired phone is created")
+            check(written?.settings.claudePath == "" && written?.settings.garminFolder == "", "its claude path and watch folder are stripped")
+            check(written?.settings.gymName == "Kept", "ordinary settings still arrive")
+            check(reply.store?.settings.claudePath == "", "and the reply does not echo them back")
+            try? FileManager.default.removeItem(at: url)
+            PeerSync.hostCode = savedHost
+
+            // A relative claude path must never resolve against the working directory.
+            let fm = FileManager.default
+            let cwd = fm.currentDirectoryPath
+            let scratch = fm.temporaryDirectory.appendingPathComponent("cairn-cwd-\(UUID().uuidString)")
+            try? fm.createDirectory(at: scratch, withIntermediateDirectories: true)
+            let planted = scratch.appendingPathComponent("planted-claude")
+            try? "#!/bin/sh\n".write(to: planted, atomically: true, encoding: .utf8)
+            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: planted.path)
+            fm.changeCurrentDirectoryPath(scratch.path)
+            let found = CoachRunner.locate("planted-claude")
+            fm.changeCurrentDirectoryPath(cwd)
+            try? fm.removeItem(at: scratch)
+            check(found != "planted-claude" && found != planted.path, "a relative claude path is not picked up from the working directory")
+
+            // A paired phone can't create profiles without limit, nor pile up merge backups.
+            let many = model(at: "2026-10-01")
+            PeerSync.hostCode = "424242"
+            var refused = 0
+            for i in 0..<(PeerSync.maxProfiles + 3) {
+                let pid = String(format: "cafe%04d", i)
+                let r = MainActor.assumeIsolated { many.answerPeer(PeerRequest(key: "424242", profileID: pid, profileName: "P\(i)", device: "selftest", store: evil), macName: "selftest") }
+                if !r.ok { refused += 1 }
+            }
+            check(many.profiles.profiles.count == PeerSync.maxProfiles && refused >= 3, "profiles created by a phone are capped (\(many.profiles.profiles.count), refused \(refused))")
+            let pid0 = "cafe0001"
+            for round in 0..<3 {
+                for k in 0..<4 { try? "x".write(to: ProfileIndex.file(for: pid0, in: AppModel.dataDirectory()).deletingPathExtension().appendingPathExtension("before-peer-\(1000 + round * 10 + k).json"), atomically: true, encoding: .utf8) }
+                _ = MainActor.assumeIsolated { many.answerPeer(PeerRequest(key: "424242", profileID: pid0, profileName: "P1", device: "selftest", store: evil), macName: "selftest") }
+            }
+            let kept = ((try? fm.contentsOfDirectory(atPath: AppModel.dataDirectory().path)) ?? []).filter { $0.hasPrefix("cairn-\(pid0).before-peer-") }.count
+            check(kept <= PeerSync.peerBackupsKept, "peer merge backups are pruned (\(kept) kept)")
+            for i in 0..<(PeerSync.maxProfiles + 3) { try? fm.removeItem(at: ProfileIndex.file(for: String(format: "cafe%04d", i), in: AppModel.dataDirectory())) }
+            for n in ((try? fm.contentsOfDirectory(atPath: AppModel.dataDirectory().path)) ?? []) where n.contains(".before-peer-") { try? fm.removeItem(at: AppModel.dataDirectory().appendingPathComponent(n)) }
+            try? fm.removeItem(at: ProfileIndex.file(for: id, in: AppModel.dataDirectory()))
+        }
+
         // Colour circuits: the gym's grades, translated both ways
         do {
             let g = model(at: "2026-10-01")

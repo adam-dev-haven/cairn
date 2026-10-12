@@ -33,12 +33,14 @@ What is in place:
 - Five wrong codes in a row lock the listener for 60 seconds, which limits a guesser to about five attempts a minute against a million codes. The counter is held in memory and resets when Cairn quits.
 - Codes are compared in constant time.
 - Profile identifiers received from the phone are checked against a strict allowlist before they are used in a file name, and received profile names are length-limited.
-- Messages are length-prefixed and capped at 32 MB.
+- Messages are length-prefixed and capped at 8 MB. A real log is tens of kilobytes.
+- A profile that the phone creates on the Mac is stored with the per-machine settings stripped: the path of the `claude` program and the watch folder. A phone can therefore never choose which program the Mac runs or which folder it reads. Existing profiles are merged through a fixed list of shared settings that excludes both.
+- A phone can create at most 20 profiles on the Mac, and the Mac keeps only the newest five pre-merge snapshots of each profile, so a paired device cannot grow the data folder without limit.
 
 What is not in place:
 
 - **The connection is not encrypted.** Anyone who can capture traffic on your Wi-Fi can read the pairing code and the log in transit, and can replay the code. A six-digit code would not make a pre-shared-key TLS handshake safe against an offline guess either, so adding TLS alone would not close this. A proper fix needs a password-authenticated key exchange or certificate pinning at pairing time.
-- The Mac reads up to 32 MB from a connection before it checks the code, so a device on the same network can make the Mac briefly hold that much memory.
+- The Mac reads up to 8 MB from a connection before it checks the code, so a device on the same network can make the Mac briefly hold that much memory.
 - A device that keeps sending wrong codes can keep the listener locked and block your own phone from syncing.
 
 For these reasons, use iPhone sync on a network you control, and switch it off when you are on a shared or public network. The rest of the app works without it.
@@ -46,7 +48,7 @@ For these reasons, use iPhone sync on a network you control, and switch it off w
 ## Other local behaviour
 
 - The coach and the activity import read and write only inside the Cairn data folder and the folder you choose. The import never writes to your watch folder.
-- The `claude` path in Settings is run as an executable. Set it only to a program you trust.
+- The `claude` path in Settings is run as an executable. It must be an absolute path (a relative one is ignored, so nothing is picked up from the folder Cairn was launched in), and it is only ever set by you in Settings. Set it only to a program you trust.
 - `CAIRN_DATA_DIR`, `CAIRN_NOW`, `CAIRN_DEMO` and the other `CAIRN_*` variables are development hooks. They only change where Cairn reads and writes, and have no effect unless set in the environment that launches the app.
 
 ## Supported versions

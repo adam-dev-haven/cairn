@@ -473,6 +473,14 @@ struct Settings: Codable, Hashable {
     /// What the coach is told about you. Blank = the built-in description.
     var coachContext = ""
 
+    /// Settings that name something on one machine: a program to run and a
+    /// folder to read. They are never taken from another device, so a paired
+    /// phone cannot choose which program the Mac runs. List new ones here.
+    mutating func clearMachineLocal() {
+        garminFolder = ""
+        claudePath = ""
+    }
+
     init() {}
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)

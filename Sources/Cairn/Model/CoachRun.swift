@@ -22,7 +22,9 @@ enum CoachRunner {
         let home = NSHomeDirectory()
         var candidates = [configured, ProcessInfo.processInfo.environment["CAIRN_CLAUDE"] ?? ""]
         candidates += ["\(home)/.local/bin/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude", "\(home)/.claude/local/claude", "\(home)/.bun/bin/claude"]
-        return candidates.first { !$0.isEmpty && fm.isExecutableFile(atPath: ($0 as NSString).expandingTildeInPath) }.map { ($0 as NSString).expandingTildeInPath }
+        // Absolute paths only: a relative one would resolve against whatever folder Cairn was launched from.
+        let expanded = candidates.map { ($0 as NSString).expandingTildeInPath }
+        return expanded.first { $0.hasPrefix("/") && fm.isExecutableFile(atPath: $0) }
     }
 
     #if os(macOS)

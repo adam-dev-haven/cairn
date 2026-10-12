@@ -32,7 +32,11 @@ struct PeerReport: Equatable {
 
 enum PeerSync {
     static let service = "_cairn._tcp"
-    static let maxFrame = 32 * 1024 * 1024
+    /// A real store is tens of kilobytes. The cap bounds what a stranger can make the Mac read.
+    static let maxFrame = 8 * 1024 * 1024
+    /// Profiles a phone may create on the Mac, and snapshots kept per profile before a peer merge.
+    static let maxProfiles = 20
+    static let peerBackupsKept = 5
 
     /// Phone: the code it was paired with.
     static var pairingCode: String? {
@@ -333,13 +337,21 @@ extension AppModel {
         let dir = Self.dataDirectory()
         let url = ProfileIndex.file(for: req.profileID, in: dir)
         var merged = req.store
+        // A profile the phone creates here is written to disk as sent, so strip
+        // everything that only this Mac gets to decide (an existing profile goes
+        // through Merge, which copies a fixed list of shared settings).
+        merged.settings.clearMachineLocal()
         if let data = try? Data(contentsOf: url) {
             guard let local = try? JSONDecoder().decode(Store.self, from: data) else {
                 return PeerResponse(ok: false, error: "The Mac couldn't read that profile's file, so it left it alone.")
             }
             try? FileManager.default.copyItem(at: url, to: url.deletingPathExtension().appendingPathExtension("before-peer-\(Int(Date().timeIntervalSince1970)).json"))
+            prunePeerBackups(of: url)
             merged = Merge.merge(local: local, remote: req.store)
         } else if !profiles.profiles.contains(where: { $0.id == req.profileID }) {
+            guard profiles.profiles.count < PeerSync.maxProfiles else {
+                return PeerResponse(ok: false, error: "This Mac already has \(PeerSync.maxProfiles) profiles, so it won't add another from a phone.")
+            }
             profiles.profiles.append(Profile(id: req.profileID, name: String(req.profileName.prefix(40)), created: Day.key(Date())))
             profiles.save(to: dir)
         }
@@ -348,6 +360,14 @@ extension AppModel {
         try? enc.encode(merged).write(to: url, options: .atomic)
         lastPeer = PeerReport(at: Date(), ok: true, detail: detail)
         return PeerResponse(ok: true, store: merged, mac: macName)
+    }
+
+    /// Keep only the newest few `before-peer` copies of a profile file.
+    private func prunePeerBackups(of url: URL) {
+        let dir = url.deletingLastPathComponent()
+        let prefix = url.deletingPathExtension().lastPathComponent + ".before-peer-"
+        let old = ((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []).filter { $0.hasPrefix(prefix) }.sorted()
+        for name in old.dropLast(PeerSync.peerBackupsKept) { try? FileManager.default.removeItem(at: dir.appendingPathComponent(name)) }
     }
 
     /// Phone: sync with the Mac now.

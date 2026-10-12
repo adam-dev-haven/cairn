@@ -50,7 +50,7 @@ The Mac and the phone each hold a full copy of the store. A sync sends the phone
 
 ## Sync transport
 
-`PeerSync.swift`. The Mac advertises `_cairn._tcp` with Bonjour on a system-assigned port. The phone browses for it, opens a TCP connection and sends one request: a four-byte big-endian length followed by a JSON `PeerRequest` (pairing code, profile id and name, device name, the whole store). The Mac replies in the same framing with a `PeerResponse`. Frames over 32 MB are refused.
+`PeerSync.swift`. The Mac advertises `_cairn._tcp` with Bonjour on a system-assigned port. The phone browses for it, opens a TCP connection and sends one request: a four-byte big-endian length followed by a JSON `PeerRequest` (pairing code, profile id and name, device name, the whole store). The Mac replies in the same framing with a `PeerResponse`. Frames over 8 MB are refused.
 
 The pairing code is checked by `PairingGuard`, which locks the listener for a minute after five consecutive misses. The limits of this design, and why it is not encrypted, are set out in [SECURITY.md](../SECURITY.md).
 
