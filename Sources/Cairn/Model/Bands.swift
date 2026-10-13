@@ -4,7 +4,7 @@ import Foundation
 /// labels are what the maker prints for the full stretch, so they rank the
 /// combinations; they aren't dumbbell kilos.
 enum Bands {
-    static let kg: [Double] = [4, 9, 13, 18, 22.7]
+    static let kg: [Double] = [4.5, 9, 13.5, 18, 22.5]
 
     struct Rung: Hashable {
         let total: Double
@@ -27,10 +27,10 @@ enum Bands {
 
     static func label(_ x: Double) -> String { x == x.rounded() ? "\(Int(x))" : String(format: "%.1f", x) }
 
-    /// "31 kg"
+    /// "31.5 kg"
     static func text(_ x: Double) -> String { "\(label(x)) kg" }
 
-    /// "31 kg (18 + 13)"
+    /// "31.5 kg (13.5 + 18)"
     static func describe(_ x: Double) -> String {
         guard let r = rungs.first(where: { abs($0.total - x) < 0.05 }), r.bands.count > 1 else { return text(x) }
         return "\(text(x)) (\(r.combo))"

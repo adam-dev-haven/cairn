@@ -8,12 +8,25 @@ enum SkillReq: Hashable {
     case week(Int)
 }
 
+/// How to do one step of a skill, at home: what you need, the set-up, the
+/// movement, what goes wrong, and photos where the free exercise database has them.
+struct StepGuide: Hashable {
+    let kit: String
+    let setup: String
+    let how: [String]
+    let mistakes: [String]
+    let photos: [String]
+    let photoNote: String
+}
+
 /// A skill is a ladder of steps, each with a standard that clears it. The
 /// ten to learn first live in LibraryBands.swift (generated from the approved
 /// training reset); the harder ones below stay locked until their gate is met.
 /// Chains follow the r/bodyweightfitness Recommended Routine (move on at
 /// 3 × 8 clean reps) and the usual lever, handstand and L-sit progressions,
 /// trimmed for a climber: no ring work that loads the biceps tendon, no back lever.
+/// Every step is doable at home with the floor, a wall, a chair or sofa, a heavy
+/// table, the five bands, the handles and the door anchor. No bar, no dip bars.
 struct Skill: Identifiable, Hashable {
     struct Step: Hashable {
         let name: String
@@ -45,33 +58,21 @@ extension Library {
     static let skills: [Skill] = topSkills + laterSkills
 
     static let laterSkills: [Skill] = [
-        Skill(id: "muscleup", name: "Muscle-up", group: .pull,
-              why: "Pull and press joined together. Climbers get it early because the pull is already strong.",
-              watch: "Needs 8 clean pull-ups and 8 dips first, and four elbow-quiet weeks. Kipping into it wrecks elbows.",
+        Skill(id: "dragon", name: "Dragon flag", group: .core,
+              why: "The floor version of the lever: the whole body held straight from the shoulders. Everything on steep ground gets easier as it comes.",
+              watch: "Rest on the upper back, never the neck. Needs a heavy sofa or bed to hold, and a mat.",
               steps: [
-                .init(name: "Chest-to-bar pull-up", goal: "3 × 5", cue: "Pull until the chest touches the bar."),
-                .init(name: "Explosive high pull-up", goal: "3 × 3 to the belly", cue: "Pull fast and hard; the bar should hit the lower chest."),
-                .init(name: "Straight-bar dip", goal: "3 × 8", cue: "The top half of the muscle-up."),
-                .init(name: "Muscle-up negative", goal: "3 × 3, slow", cue: "Start on top, lower slowly through the transition."),
-                .init(name: "Band-assisted muscle-up", goal: "3 × 3", cue: "Band under the knees. Wrists over the bar at the turn."),
-                .init(name: "Muscle-up", goal: "3 × 3", cue: "False grip helps. Pull to the belly, lean over, press."),
-              ], symbol: "figure.play", requires: [.step("pullup", 5), .step("dip", 2)]),
-        Skill(id: "frontlever", name: "Front lever", group: .pull,
-              why: "The climber's lever: body horizontal under the bar. Everything on steep ground gets easier as it comes.",
-              watch: "Needs 8 clean pull-ups and a 30 s hollow hold. Keep the arms straight; bent arms load the elbows.",
-              steps: [
-                .init(name: "Tuck front lever", goal: "3 × 10 s", cue: "Hang, pull the straight arms down, knees to chest, back flat."),
-                .init(name: "Advanced tuck", goal: "3 × 10 s", cue: "Open the hips so the back is flat and the knees at 90°."),
-                .init(name: "One-leg front lever", goal: "3 × 8 s per side", cue: "One leg straight, one tucked."),
-                .init(name: "Straddle front lever", goal: "3 × 8 s", cue: "Legs wide, straight, hips level with the shoulders."),
-                .init(name: "Front lever", goal: "3 × 5 s", cue: "Legs together. Squeeze everything."),
-              ], symbol: "figure.play", requires: [.step("pullup", 5), .step("hollow", 2)]),
+                .init(name: "Tuck dragon flag", goal: "3 × 5 s", cue: "Knees to the chest, hips and lower back lifted off the floor."),
+                .init(name: "One-leg dragon flag", goal: "3 × 5 s per side", cue: "One leg straight, one tucked."),
+                .init(name: "Dragon flag negative", goal: "3 × 3, 5 s down", cue: "Start straight at the top, lower as one plank."),
+                .init(name: "Dragon flag", goal: "3 × 3", cue: "Straight body, lift and lower without folding at the hips."),
+              ], symbol: "figure.core.training", day: "Wed", requires: [.step("legraise", 3), .step("hollow", 2)]),
         Skill(id: "hspu", name: "Handstand push-up", group: .push,
               why: "Overhead strength without a barbell. Continues the wall handstand work.",
               watch: "Any pinch at the front of the shoulder: back to pikes.",
               steps: [
                 .init(name: "Pike push-up", goal: "3 × 8", cue: "Head lowers to a spot in front of the hands: a triangle."),
-                .init(name: "Feet-elevated pike push-up", goal: "3 × 8", cue: "Feet on a box, hips high over the hands."),
+                .init(name: "Feet-elevated pike push-up", goal: "3 × 8", cue: "Feet on a chair seat, hips high over the hands."),
                 .init(name: "Wall handstand negative", goal: "3 × 3, 5 s down", cue: "Back to the wall, lower the head to a cushion."),
                 .init(name: "Partial wall HSPU", goal: "3 × 5", cue: "Down to a stack of books or a yoga block, press back up."),
                 .init(name: "Wall handstand push-up", goal: "3 × 5", cue: "Full range, head touches the floor lightly."),
@@ -96,6 +97,9 @@ extension Library {
     ]
 
     static func skill(_ id: String) -> Skill? { skills.first { $0.id == id } }
+
+    /// The home guide for one step of a skill.
+    static func guide(_ skill: String, _ step: String) -> StepGuide? { stepGuides["\(skill)|\(step)"] }
 
     /// The drills you can learn, in teaching order. Deload, holiday and test
     /// weeks have their own "drills" that aren't skills to move through.

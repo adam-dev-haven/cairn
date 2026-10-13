@@ -538,6 +538,10 @@ struct Store: Codable {
     var skillsCleared: [String: String] = [:]
     /// The skills you're working on now; they show up in the sessions.
     var skillFocus: [String] = []
+    /// 2 = every skill step doable at home (see AppModel.migrateSkills).
+    var skillLadder = 2
+    /// 2 = the bands are 4.5, 9, 13.5, 18 and 22.5 kg (see AppModel.migrateBands).
+    var bandLadder = 2
     /// Sessions moved, added or taken off a single day: date key → change.
     var dayChanges: [String: DayChange] = [:]
     /// Loads set by hand or by a coach adjustment: exercise id → load.
@@ -572,6 +576,8 @@ struct Store: Codable {
         skills = try c.decodeIfPresent([String: Int].self, forKey: .skills) ?? [:]
         skillsCleared = try c.decodeIfPresent([String: String].self, forKey: .skillsCleared) ?? [:]
         skillFocus = try c.decodeIfPresent([String].self, forKey: .skillFocus) ?? []
+        skillLadder = try c.decodeIfPresent(Int.self, forKey: .skillLadder) ?? 1
+        bandLadder = try c.decodeIfPresent(Int.self, forKey: .bandLadder) ?? 1
         dayChanges = try c.decodeIfPresent([String: DayChange].self, forKey: .dayChanges) ?? [:]
         loadSet = try c.decodeIfPresent([String: LoadSet].self, forKey: .loadSet) ?? [:]
         dismissedSchedule = try c.decodeIfPresent(Set<String>.self, forKey: .dismissedSchedule) ?? []

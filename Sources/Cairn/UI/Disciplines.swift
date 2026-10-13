@@ -371,11 +371,51 @@ struct BarPage: View {
         Page(title: "Calisthenics", subtitle: "Built for size, not tricks. Stay at a weight until every set hits the top of the range. Then the weight goes up one step and the reps start again at the bottom.") {
             VStack(alignment: .leading, spacing: 40) {
                 SkillsSection()
+                ExerciseDirectory()
                 LiftsPanel()
                 Ladders()
                 WorkoutBrowser(workoutID: $workoutID)
                 Benchmarks()
             }
+        }
+    }
+}
+
+/// Every exercise in the plan, by muscle group, each opening its guide: photos, set-up, how, mistakes.
+struct ExerciseDirectory: View {
+    @Environment(Navigator.self) private var nav
+    @State private var group: MoveGroup = .push
+
+    var body: some View {
+        let list = Library.exercises.filter { $0.group == group }
+        VStack(alignment: .leading, spacing: 16) {
+            SectionTitle(text: "Exercises", detail: "Every exercise in your sessions, with photos and how to do it. Bands and floor at home.")
+            Picker("", selection: $group) {
+                ForEach(MoveGroup.allCases) { g in Text(g.name).tag(g) }
+            }
+            .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 420)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(list.enumerated()), id: \.element.id) { i, info in
+                    Button { nav.show(info.name, symbol: info.symbol) { CuesPopover(info: info) } } label: {
+                        HStack(alignment: .top, spacing: 16) {
+                            Image(systemName: info.symbol).font(.system(size: 15)).foregroundStyle(Ink.ink2).frame(width: 22)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(info.name).font(Face.heading).foregroundStyle(Ink.ink)
+                                Text(info.muscles.isEmpty ? info.why : info.muscles.joined(separator: ", "))
+                                    .font(Face.small).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                            if info.isBand { Text("Bands").font(Face.tiny).foregroundStyle(Ink.ink2) }
+                            Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(Ink.ink2)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.vertical, 12)
+                    if i < list.count - 1 { Rule(seed: i + 80) }
+                }
+            }
+            .sheetCard()
         }
     }
 }
@@ -460,6 +500,8 @@ struct SkillDetail: View {
     @Environment(AppModel.self) private var model
     @Environment(Navigator.self) private var nav
     let skill: Skill
+    /// Steps opened by hand; the one you're on is always open.
+    @State private var openSteps: Set<Int> = []
     var body: some View {
         let step = model.skillStep(skill.id)
         let focused = model.store.skillFocus.contains(skill.id)
@@ -492,29 +534,48 @@ struct SkillDetail: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(skill.steps.enumerated()), id: \.offset) { i, st in
                     let cleared = model.store.skillsCleared["\(skill.id)@\(i)"] != nil || i < step
-                    Button { model.setSkillStep(skill.id, i) } label: {
+                    let guide = Library.guide(skill.id, st.name)
+                    let shown = (i == step && !done) || openSteps.contains(i)
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .top, spacing: 12) {
-                            ZStack {
-                                Circle().fill(cleared ? Ink.ink : (i == step ? Ink.red : Ink.sand)).frame(width: 22, height: 22)
-                                if cleared { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Ink.sheet) }
-                                else { Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(i == step ? Ink.sheet : Ink.ink2) }
+                            Button { model.setSkillStep(skill.id, i) } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    ZStack {
+                                        Circle().fill(cleared ? Ink.ink : (i == step ? Ink.red : Ink.sand)).frame(width: 22, height: 22)
+                                        if cleared { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(Ink.sheet) }
+                                        else { Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(i == step ? Ink.sheet : Ink.ink2) }
+                                    }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(alignment: .firstTextBaseline) {
+                                            Text(st.name).font(i == step ? Face.heading : Face.body).foregroundStyle(Ink.ink)
+                                            Spacer()
+                                            Text(st.goal).font(Face.small).monospacedDigit().foregroundStyle(Ink.ink2)
+                                        }
+                                        if i == step && !done {
+                                            Text(st.cue).font(Face.small).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                }
+                                .contentShape(Rectangle())
                             }
-                            VStack(alignment: .leading, spacing: 2) {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(st.name).font(i == step ? Face.heading : Face.body).foregroundStyle(Ink.ink)
-                                    Spacer()
-                                    Text(st.goal).font(Face.small).monospacedDigit().foregroundStyle(Ink.ink2)
+                            .buttonStyle(.plain)
+                            .help("Put me on this step")
+                            if guide != nil {
+                                Button {
+                                    if openSteps.contains(i) { openSteps.remove(i) } else { openSteps.insert(i) }
+                                } label: {
+                                    Image(systemName: shown ? "chevron.up" : "chevron.down")
+                                        .font(.system(size: 12, weight: .semibold)).foregroundStyle(Ink.ink2)
+                                        .frame(width: 28, height: 28).contentShape(Rectangle())
                                 }
-                                if i == step && !done {
-                                    Text(st.cue).font(Face.small).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
-                                }
+                                .buttonStyle(.plain)
+                                .accessibilityLabel(shown ? "Hide how to do \(st.name)" : "Show how to do \(st.name)")
+                                .help("How to do it")
                             }
                         }
-                        .padding(.vertical, 7)
-                        .contentShape(Rectangle())
+                        if shown, let guide { StepGuideView(guide: guide).padding(.leading, 34) }
                     }
-                    .buttonStyle(.plain)
-                    .help("Put me on this step")
+                    .padding(.vertical, 7)
                 }
             }
             Label(skill.watch, systemImage: "exclamationmark.triangle").font(Face.small).foregroundStyle(Ink.red).fixedSize(horizontal: false, vertical: true)
@@ -523,10 +584,44 @@ struct SkillDetail: View {
     }
 }
 
+/// How to do one skill step at home: what you need, photos, set-up, the movement, what goes wrong.
+struct StepGuideView: View {
+    let guide: StepGuide
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(guide.kit, systemImage: "house").font(Face.small).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
+            ForEach(guide.photos, id: \.self) { PhotoPair(id: $0) }
+            if !guide.photoNote.isEmpty {
+                Text(guide.photoNote).font(Face.tiny).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
+            }
+            if !guide.setup.isEmpty {
+                Text("Set-up").font(Face.tiny).foregroundStyle(Ink.ink3).textCase(.uppercase)
+                Text(guide.setup).font(Face.body).fixedSize(horizontal: false, vertical: true)
+            }
+            if !guide.how.isEmpty {
+                Text("How").font(Face.tiny).foregroundStyle(Ink.ink3).textCase(.uppercase)
+                ForEach(Array(guide.how.enumerated()), id: \.offset) { i, c in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("\(i + 1)").font(.system(size: 12, weight: .semibold)).foregroundStyle(Ink.red).frame(width: 14, alignment: .leading).padding(.top, 2)
+                        Text(c).font(Face.body).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            if !guide.mistakes.isEmpty {
+                Text("Common mistakes").font(Face.tiny).foregroundStyle(Ink.ink3).textCase(.uppercase)
+                ForEach(guide.mistakes, id: \.self) { m in
+                    Label(m, systemImage: "xmark").font(Face.small).foregroundStyle(Ink.ink2).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct Ladders: View {
     @Environment(AppModel.self) private var model
     @Environment(\.compact) private var compact
-    let ids = ["pullup", "pushup", "pike", "core-front", "bss", "side-plank", "calf-raise", "glute-bridge"]
+    let ids = ["pushup", "pike", "core-front", "bss", "side-plank", "calf-raise", "glute-bridge"]
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             SectionTitle(text: "Progression ladders", detail: "Where you stand on each movement. Click a rung when you move up.")

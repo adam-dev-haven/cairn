@@ -279,7 +279,7 @@ extension AppModel {
         snap["recentAdaptations"] = store.adaptations.prefix(4).map { "\($0.day): \($0.message)" + ($0.undone ? " (undone)" : "") }
         snap["scheduleIssues"] = scheduleIssues(week: idx).map(\.text)
         snap["patterns"] = patternFindings().map(\.text)
-        snap["equipment"] = "Resistance bands (4, 9, 13, 18, 22.7 kg, stackable), door anchor, handles; at the gym: dumbbells, a pull-up bar, dip bars. Pull-ups and rows are gym-only."
+        snap["equipment"] = "Resistance bands (4.5, 9, 13.5, 18, 22.5 kg, stackable), door anchor, handles; at the gym: dumbbells, a pull-up bar, dip bars. The calisthenics skill ladders are all home: bands, a heavy table, chairs, a wall and the floor. No bar steps."
         let earlier = store.coach.filter { $0.stage != .asking || $0.answered }.prefix(2).map { r -> [String: Any] in
             ["date": r.day, "scope": r.scope.rawValue, "headline": r.headline, "verdict": r.verdict,
              "applied": r.adjustments.filter { $0.status == .applied }.map { $0.type + ": " + $0.reason }]

@@ -90,7 +90,11 @@ final class AppModel {
             store = try JSONDecoder().decode(Store.self, from: Data(contentsOf: url))
             fileURL = url
             lastSaved = store
-            if migratePlan() { save() }
+            let planned = migratePlan()
+            let laddered = migrateSkills()
+            let banded = migrateBands()
+            let geared = addGymVersions()
+            if planned || laddered || banded || geared { save() }
         } catch {
             let stamp = Int(Date().timeIntervalSince1970)
             try? FileManager.default.copyItem(at: url, to: url.deletingPathExtension().appendingPathExtension("unreadable-\(stamp).json"))
@@ -786,8 +790,7 @@ final class AppModel {
         award("v3-flash", problems.contains { $0.flash && $0.grade >= 3 })
         award("v4", problems.contains { $0.sent && $0.grade >= 4 })
         award("five-up", sets.contains { $0.exerciseID == "pullup" && $0.variant.lowercased().contains("strict") && $0.best >= 5 }
-              || (Int(store.benchmarks["pullups"]?.end ?? "") ?? 0) >= 5
-              || store.skillsCleared["pullup@4"] != nil)
+              || (Int(store.benchmarks["pullups"]?.end ?? "") ?? 0) >= 5)
         award("twenty-down", sets.contains { $0.exerciseID == "pushup" && $0.best >= 20 }
               || [store.benchmarks["pushups"]?.start, store.benchmarks["pushups"]?.end].contains { (Int($0 ?? "") ?? 0) >= 20 })
         award("hollow-man", sets.contains { $0.exerciseID == "core-front" && $0.timed && $0.best >= 60 }
@@ -882,6 +885,67 @@ final class AppModel {
     }
 
     // MARK: Plan revisions
+
+    /// Push and Aesthetic gained a gym version (dumbbells) beside the band one,
+    /// so every strength day can be logged at home or at the gym. Only workouts
+    /// that have none get it, so a gym list you edited yourself is never replaced.
+    @discardableResult
+    func addGymVersions() -> Bool {
+        let fresh = DefaultPlan.make(start: store.plan.startDate).workouts
+        var changed = false
+        for i in store.plan.workouts.indices where store.plan.workouts[i].gymExercises == nil {
+            guard let f = fresh.first(where: { $0.id == store.plan.workouts[i].id }), f.gymExercises != nil else { continue }
+            store.plan.workouts[i].gymExercises = f.gymExercises
+            if store.plan.name == "Wall & Bar" { store.plan.workouts[i].note = f.note }
+            changed = true
+        }
+        return changed
+    }
+
+    /// The bands are 4.5, 9, 13.5, 18 and 22.5 kg (yellow, green, red, blue,
+    /// black; the app had 4, 13 and 22.7). Loads logged on a band snap to the
+    /// nearest rung of the new ladder, so "53.7 kg" reads as 54 kg
+    /// (13.5 + 18 + 22.5). A copy of the file is kept aside first.
+    @discardableResult
+    func migrateBands() -> Bool {
+        guard store.bandLadder < 2 else { return false }
+        if let url = fileURL {
+            let backup = url.deletingLastPathComponent().appendingPathComponent("\(url.deletingPathExtension().lastPathComponent).backup-before-band-values.json")
+            if !FileManager.default.fileExists(atPath: backup.path) { try? FileManager.default.copyItem(at: url, to: backup) }
+        }
+        func snap(_ kg: Double) -> Double { Bands.rungs[Bands.nearest(kg)].total }
+        for s in store.sessions.indices {
+            for e in store.sessions[s].exercises.indices where Library.exercise(store.sessions[s].exercises[e].exerciseID).isBand {
+                for k in store.sessions[s].exercises[e].sets.indices {
+                    if let kg = store.sessions[s].exercises[e].sets[k].kg { store.sessions[s].exercises[e].sets[k].kg = snap(kg) }
+                }
+            }
+        }
+        for (id, ls) in store.loadSet where Library.exercise(id).isBand { store.loadSet[id]?.kg = snap(ls.kg) }
+        store.bandLadder = 2
+        return true
+    }
+
+    /// Skill ladders moved to home (ladder 2): pull-up, row, dip and hanging
+    /// leg raise became band, table, chair and floor steps, and muscle-up and
+    /// front lever (bar only) were replaced by the dragon flag. Step positions
+    /// and cleared steps for those skills would point at different steps, so
+    /// they start over; every other skill keeps its progress. A copy of the
+    /// file is kept aside first.
+    @discardableResult
+    func migrateSkills() -> Bool {
+        guard store.skillLadder < 2 else { return false }
+        if let url = fileURL {
+            let backup = url.deletingLastPathComponent().appendingPathComponent("\(url.deletingPathExtension().lastPathComponent).backup-before-home-skills.json")
+            if !FileManager.default.fileExists(atPath: backup.path) { try? FileManager.default.copyItem(at: url, to: backup) }
+        }
+        let changed = ["pullup", "row", "dip", "legraise", "muscleup", "frontlever"]
+        for id in changed { store.skills[id] = nil }
+        for k in store.skillsCleared.keys where changed.contains(where: { k.hasPrefix($0 + "@") }) { store.skillsCleared[k] = nil }
+        store.skillFocus.removeAll { Library.skill($0) == nil }
+        store.skillLadder = 2
+        return true
+    }
 
     /// Bring a saved plan up to the split week (revision 2): two hard climbs,
     /// strength on its own days, pull 48 h clear of the climbs. The week

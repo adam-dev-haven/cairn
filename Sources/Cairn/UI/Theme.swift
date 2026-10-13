@@ -324,6 +324,7 @@ struct StepperField: View {
                     .frame(width: compact ? 36 : 22, height: compact ? 36 : 26).contentShape(Rectangle())
             }.buttonStyle(.plain)
             Text(label?(value) ?? "\(value)\(suffix)").font(.system(size: compact ? 15 : 13, weight: .medium)).monospacedDigit()
+                .lineLimit(1).fixedSize(horizontal: true, vertical: false)
                 .frame(minWidth: 34)
             Button { value = min(range.upperBound, value + step) } label: {
                 Image(systemName: "plus").font(.system(size: compact ? 12 : 10, weight: .bold))

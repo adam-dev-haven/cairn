@@ -17,7 +17,7 @@ The screenshots use generated demo data.
 - **Logs sessions where you do them.** Climbs are logged one send at a time by grade. Strength sets are prefilled from the last session, so a normal day is a few taps.
 - **Adapts the plan.** If a week ends with two or more missed gym days (sick days excluded), the week repeats and the rest of the block slides back seven days. Three or more sick days add an easy return week first. Every change can be undone.
 - **Applies double progression.** When all sets reach the top of the rep range, the load goes up a step and the reps return to the bottom of the range. Resistance bands are stacked from a set of five, and the app steps through the combinations in order of total resistance.
-- **Tracks skills.** Calisthenics skills are ladders. The harder skills, such as the muscle-up and the planche, stay locked until their prerequisites are met.
+- **Tracks skills.** Calisthenics skills are ladders. The harder skills, such as the dragon flag and the planche, stay locked until their prerequisites are met.
 - **Handles grades your way.** Use the V scale, the Font scale, or your gym's colour circuits. Old logs convert when you switch.
 - **Keeps profiles apart.** Each profile has its own plan, log and settings.
 - **Syncs with an iPhone app** over local Wi-Fi, with no cloud in between. This is optional and off by default.

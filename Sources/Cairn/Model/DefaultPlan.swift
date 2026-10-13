@@ -104,15 +104,21 @@ enum DefaultPlan {
     }
 
     static let workouts: [Workout] = [
-        Workout(id: "A", name: "Push", note: "Chest, shoulders, triceps. Bands on the door anchor. No pulling and no hard gripping today.", exercises: [
+        Workout(id: "A", name: "Push", note: "Chest, shoulders, triceps. Bands on the door anchor at home, dumbbells at the gym: the switch is in the session. No pulling and no hard gripping today.", exercises: [
             pe("band-floor-press", 10, 15),
             pe("pushup", 8, 15, variant: "Push-up"),
             pe("band-ohp", 8, 12),
             pe("band-low-high-fly", 12, 15),
             pe("band-lateral-raise", 12, 20),
             pe("band-oh-triceps", 12, 15),
-        ], isHome: true, minutes: 35),
-        Workout(id: "D", name: "Aesthetic", note: "Delts, arms, abs, calves. Light on the hands, so it's safe the day before a hard climb.", exercises: [
+        ], isHome: true, gymExercises: [
+            pe("floor-press", 8, 12),
+            pe("pushup", 8, 15, variant: "Push-up"),
+            pe("shoulder-press", 8, 12),
+            pe("lateral-raise", 12, 20),
+            pe("oh-triceps", 10, 15),
+        ], minutes: 35),
+        Workout(id: "D", name: "Aesthetic", note: "Delts, arms, abs, calves. Bands at home, dumbbells at the gym: the switch is in the session. Light on the hands, so it's safe the day before a hard climb.", exercises: [
             pe("band-rear-fly", 15, 20),
             pe("band-lateral-raise", 15, 25),
             pe("band-pushdown", 12, 20),
@@ -122,7 +128,19 @@ enum DefaultPlan {
             pe("side-plank", 20, 40, timed: true, perSide: true,
                more: [Scheme(fromWeek: 6, variant: "Side plank, top leg lifted", low: 20, high: 40, timed: true)]),
             pe("band-calf-raise", 15, 25),
-        ], isHome: true, minutes: 30),
+        ], isHome: true, gymExercises: [
+            pe("rear-delt", 12, 20),
+            pe("lateral-raise", 15, 25),
+            pe("oh-triceps", 12, 20),
+            pe("hammer-curl", 10, 15, sets: 2),
+            PlannedExercise(exerciseID: "core-front", schemes: [
+                Scheme(fromWeek: 1, variant: "Dead bug", sets: 3, low: 8, high: 12),
+                Scheme(fromWeek: 6, variant: "Hollow hold", sets: 3, low: 20, high: 40, timed: true),
+            ]),
+            pe("side-plank", 20, 40, timed: true, perSide: true,
+               more: [Scheme(fromWeek: 6, variant: "Side plank, top leg lifted", low: 20, high: 40, timed: true)]),
+            pe("calf-raise", 12, 20, perSide: true),
+        ], minutes: 30),
         Workout(id: "B", name: "Legs", note: "No grip needed. Bands at home, or dumbbells at the gym: the switch is in the session.", exercises: [
             pe("band-squat", 10, 15),
             pe("band-good-morning", 10, 15),

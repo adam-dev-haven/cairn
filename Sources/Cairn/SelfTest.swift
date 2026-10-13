@@ -37,6 +37,8 @@ enum SelfTest {
         check(p.timeline.count == 14, "timeline of 14")
         check(p.days.count == 7, "7 day patterns")
         check(Set(p.workouts.map(\.id)) == ["A", "B", "C", "D", "H", "P"], "workouts A B C D H P")
+        check(["A", "B", "C", "D"].allSatisfy { id in p.workouts.first { $0.id == id }?.gymExercises?.isEmpty == false }, "Push, Legs, Pull and Aesthetic each have a gym version")
+        check(Bands.kg == [4.5, 9, 13.5, 18, 22.5] && Bands.rungs.last?.total == 67.5, "the five bands are yellow 4.5, green 9, red 13.5, blue 18 and black 22.5 kg")
         check(p.revision == DefaultPlan.revision && p.points.greenWeek == 50, "the plan is the split week, green at 50")
         check(p.weeks.map(\.phase) == [.foundation, .foundation, .foundation, .foundation, .deload, .build, .build, .build, .build, .deload, .push, .push, .holiday, .test], "phase order from the doc")
         check(p.weeks.allSatisfy { Library.drill($0.drillID) != nil }, "every week has a drill")
@@ -57,10 +59,10 @@ enum SelfTest {
         check(!p.days.flatMap(\.items).contains { ($0.kind == .home || $0.kind == .workout) && $0.countsAsGym }, "nothing on a climbing day loads the hands afterwards")
         check(p.days[0].items.allSatisfy { $0.kind != .home && $0.kind != .workout } && p.days[3].items.allSatisfy { $0.kind != .home && $0.kind != .workout }, "climb days have no strength session")
         // The band ladder
-        check(Bands.rungs.first?.total == 4 && Bands.rungs.last?.total == 66.7, "ladder runs 4 to 66.7 kg")
+        check(Bands.rungs.first?.total == 4.5 && Bands.rungs.last?.total == 67.5, "ladder runs 4.5 to 67.5 kg")
         check(Bands.rungs.map(\.total) == Bands.rungs.map(\.total).sorted() && Set(Bands.rungs.map(\.total)).count == Bands.rungs.count, "ladder is sorted, one rung per total")
-        check(Bands.up(from: 31) > 31 && Bands.down(from: 31) < 31 && Bands.up(from: 100) == 66.7 && Bands.down(from: 0) == 4, "stepping the ladder stops at both ends")
-        check(Bands.describe(31) == "31 kg (13 + 18)" && Bands.describe(13) == "13 kg", "a band combination reads as its parts")
+        check(Bands.up(from: 31.5) > 31.5 && Bands.down(from: 31.5) < 31.5 && Bands.up(from: 100) == 67.5 && Bands.down(from: 0) == 4.5, "stepping the ladder stops at both ends")
+        check(Bands.describe(31.5) == "31.5 kg (13.5 + 18)" && Bands.describe(13.5) == "13.5 kg", "a band combination reads as its parts")
         check(Quests.badges.count == Set(Quests.badges.map(\.id)).count, "badge ids unique")
         check(Library.exercises.filter { !$0.ladder.isEmpty }.allSatisfy { (AppModel.defaultRungs[$0.id] ?? 0) < $0.ladder.count }, "default rungs inside ladders")
 
@@ -115,7 +117,7 @@ enum SelfTest {
         let draft = m.draft(for: PlannedItem(kind: .home, workoutID: "A"), on: d("2026-10-05"))
         check(draft.exercises.first?.sets.first?.value == 12, "short of the top, the target is two reps past last time")
         check(draft.exercises.first?.sets.allSatisfy { !$0.done } == true, "a new draft has nothing ticked")
-        check(draft.exercises.first?.sets.first?.kg == 31, "a band exercise starts on its guess")
+        check(draft.exercises.first?.sets.first?.kg == 31.5, "a band exercise starts on its guess")
 
         // Bands: the load climbs a rung when the top of the range lands twice
         do {
@@ -147,7 +149,7 @@ enum SelfTest {
             var started = g.setPlace(home, atGym: false)
             started.exercises[0].sets[0].done = true
             check(g.setPlace(started, atGym: true).exercises.first?.exerciseID == "band-lat-pulldown", "switching after ticking a set keeps the log")
-            check(g.plan.workouts.filter { $0.gymExercises != nil }.map(\.id).sorted() == ["B", "C"], "legs and pull have gym versions")
+            check(g.plan.workouts.filter { $0.gymExercises != nil }.map(\.id).sorted() == ["A", "B", "C", "D"], "push, legs, pull and aesthetic have gym versions")
         }
 
         // Elbows
@@ -638,29 +640,63 @@ enum SelfTest {
             check(Library.skills.flatMap(\.requires).allSatisfy { req in
                 if case .step(let id, let n) = req { return (Library.skill(id)?.steps.count ?? 0) > n } else { return true }
             }, "every lock points at a real step")
-            check(r.skillStep("pullup") == 2, "pull-up starts at negatives")
+            check(r.skillStep("pullup") == 0, "vertical pull starts at the first band pulldown")
             r.clearSkillStep("pullup")
-            check(r.skillStep("pullup") == 3 && r.store.skillsCleared["pullup@2"] != nil, "clearing a step moves up")
-            r.setSkillStep("pullup", 1)
-            check(r.skillStep("pullup") == 1 && r.store.skillsCleared["pullup@2"] == nil, "stepping back reopens the steps above")
+            check(r.skillStep("pullup") == 1 && r.store.skillsCleared["pullup@0"] != nil, "clearing a step moves up")
+            r.setSkillStep("pullup", 0)
+            check(r.skillStep("pullup") == 0 && r.store.skillsCleared["pullup@0"] == nil, "stepping back reopens the steps above")
             let hollow = Library.skill("hollow")!
             for _ in hollow.steps { r.clearSkillStep("hollow") }
             check(r.skillComplete("hollow"), "clearing the last step completes the skill")
             check(r.store.badges["hollow-man"] != nil, "a 60 s hollow hold from the ladder earns the quest")
-            let lever = Library.skill("frontlever")!
-            check(!r.skillUnlocked(lever), "the front lever starts locked")
-            r.toggleFocus("frontlever")
+            let flag = Library.skill("dragon")!
+            check(!r.skillUnlocked(flag), "the dragon flag starts locked")
+            r.toggleFocus("dragon")
             check(r.focusSkills.isEmpty, "a locked skill can't be picked")
-            for _ in 0...5 { r.clearSkillStep("pullup") }
-            r.setSkillStep("pullup", 0)
-            for _ in 0...5 { r.clearSkillStep("pullup") }
-            check(r.skillUnlocked(lever), "clearing eight clean pull-ups and a 30 s hollow hold opens it")
-            r.toggleFocus("frontlever")
-            check(r.focusSkills.map(\.id) == ["frontlever"], "focus a skill")
+            for _ in 0...3 { r.clearSkillStep("legraise") }
+            check(r.skillUnlocked(flag), "a clean slow leg raise and a 30 s hollow hold open it")
+            r.toggleFocus("dragon")
+            check(r.focusSkills.map(\.id) == ["dragon"], "focus a skill")
             check(!r.skillUnlocked(Library.skill("nordic")!) && model(at: "2026-11-09").skillUnlocked(Library.skill("nordic")!), "the Nordic curl opens in the Build phase")
             let five = model(at: "2026-10-20")
-            for _ in 0...4 { five.clearSkillStep("pullup") }
-            check(five.store.badges["five-up"] != nil, "five clean pull-ups from the ladder earn Five Up")
+            for _ in Library.skill("pullup")!.steps { five.clearSkillStep("pullup") }
+            check(five.store.badges["five-up"] == nil, "band pulldowns don't earn Five Up; only real pull-ups do")
+
+            // Home: every step of every skill has a guide, nothing needs a bar, and its photos ship.
+            let all = Library.skills.flatMap { sk in sk.steps.map { (sk.id, $0.name) } }
+            check(all.allSatisfy { Library.guide($0.0, $0.1) != nil }, "every skill step has a home guide")
+            check(Library.stepGuides.keys.allSatisfy { k in all.contains { "\($0.0)|\($0.1)" == k } }, "every guide belongs to a real step")
+            check(Library.stepGuides.values.allSatisfy { !$0.kit.isEmpty && !$0.setup.isEmpty && $0.how.count >= 3 && !$0.mistakes.isEmpty }, "guides have kit, set-up, steps and mistakes")
+            check(Library.stepGuides.values.allSatisfy { g in !["pull-up bar", "dip bar", "rings", "parallette", "dumbbell"].contains { g.kit.lowercased().contains($0) } }, "no guide needs gym kit")
+            if Photos.available {
+                check(Library.stepGuides.values.flatMap(\.photos).allSatisfy { !Photos.frames($0).isEmpty }, "every guide photo ships with the app")
+            }
+
+            // Old ladders: the changed skills start over, the rest keep their place, bar-only skills drop out of focus.
+            let old = model(at: "2026-10-20")
+            old.mutate { s in
+                s.skillLadder = 1; s.skills = ["pullup": 3, "lsit": 2]
+                s.skillsCleared = ["pullup@2": "2026-10-10", "lsit@0": "2026-10-11", "lsit@1": "2026-10-12"]
+                s.skillFocus = ["frontlever", "lsit"]
+            }
+            check(old.migrateSkills() && !old.migrateSkills(), "the ladder migration runs once")
+            check(old.store.skills["pullup"] == nil && old.store.skillsCleared["pullup@2"] == nil, "changed skills start over")
+            check(old.store.skills["lsit"] == 2 && old.store.skillsCleared.count == 2 && old.store.skillFocus == ["lsit"], "other skills keep their place")
+
+            // Bands: logged loads snap to the new rungs, once; gym versions are added only where missing.
+            let bm = model(at: "2026-10-20")
+            var bs = SessionLog(day: "2026-10-13", kind: .home)
+            bs.exercises = [ExerciseLog(exerciseID: "band-lat-pulldown", variant: "x", timed: false, low: 10, high: 15, sets: [SetEntry(value: 10, kg: 53.7, done: true)]),
+                            ExerciseLog(exerciseID: "goblet-squat", variant: "x", timed: false, low: 8, high: 15, sets: [SetEntry(value: 10, kg: 20, done: true)])]
+            bm.store.sessions = [bs]
+            bm.store.loadSet["band-lat-pulldown"] = LoadSet(kg: 53.7, since: "2026-10-13", why: "x")
+            bm.store.bandLadder = 1
+            check(bm.migrateBands() && !bm.migrateBands(), "the band migration runs once")
+            check(bm.store.sessions[0].exercises[0].sets[0].kg == 54 && bm.store.loadSet["band-lat-pulldown"]?.kg == 54, "a band load snaps to the nearest rung (13.5 + 18 + 22.5)")
+            check(bm.store.sessions[0].exercises[1].sets[0].kg == 20, "dumbbell loads are left alone")
+            bm.store.plan.workouts[0].gymExercises = nil
+            bm.store.plan.workouts[3].gymExercises = nil
+            check(bm.addGymVersions() && !bm.addGymVersions() && bm.plan.workouts[0].gymExercises?.isEmpty == false && bm.plan.workouts[3].gymExercises?.isEmpty == false, "Push and Aesthetic get their gym versions back, once")
 
             // All of it travels between devices
             let other = AppModel(store: r.store)

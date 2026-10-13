@@ -4,7 +4,7 @@ import AppKit
 import SwiftUI
 
 enum SettingsPage: String, CaseIterable, Identifiable {
-    case profiles, grades, block, adapting, scheduling, progression, week, sessions, points, steps, sync, reset
+    case profiles, grades, block, adapting, scheduling, progression, week, sessions, points, steps, sync, reset, about, privacy, legal, credits
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -20,6 +20,10 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .steps: "Steps"
         case .sync: "Sync"
         case .reset: "Reset"
+        case .about: "About"
+        case .privacy: "Privacy policy"
+        case .legal: "Legal"
+        case .credits: "Credits and licenses"
         }
     }
     var detail: String {
@@ -35,7 +39,11 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .points: "Green week, points, protein, calories"
         case .steps: "Floor and goal per week"
         case .sync: "Your iPhone and your watch folder"
-        case .reset: "Quests, logs, plan — all undoable"
+        case .reset: "Quests, logs, plan, all undoable"
+        case .about: "What Cairn is and who made it"
+        case .privacy: "What is stored and where it goes"
+        case .legal: "Not medical advice, liability, terms"
+        case .credits: "Code license, photos, sources"
         }
     }
     var symbol: String {
@@ -52,6 +60,10 @@ enum SettingsPage: String, CaseIterable, Identifiable {
         case .steps: "figure.walk"
         case .sync: "arrow.triangle.2.circlepath.circle"
         case .reset: "arrow.uturn.backward"
+        case .about: "info.circle"
+        case .privacy: "hand.raised"
+        case .legal: "doc.text"
+        case .credits: "books.vertical"
         }
     }
 }
@@ -145,6 +157,10 @@ struct SettingsView: View {
         case .steps: floors
         case .sync: data
         case .reset: ResetSection()
+        case .about: DocSection(title: "About", parts: AboutDocs.about, showsVersion: true)
+        case .privacy: DocSection(title: "Privacy policy", parts: AboutDocs.privacy)
+        case .legal: DocSection(title: "Legal", parts: AboutDocs.legal)
+        case .credits: DocSection(title: "Credits and licenses", parts: AboutDocs.credits)
         }
     }
 
@@ -277,11 +293,11 @@ struct SettingsView: View {
             if let wi = model.plan.workouts.firstIndex(where: { $0.id == workoutID }) {
                 SettingRow("Name") {
                     TextField("", text: Binding(get: { model.plan.workouts[wi].name }, set: { v in model.mutate { $0.plan.workouts[wi].name = v } }))
-                        .textFieldStyle(.roundedBorder).frame(width: 240)
+                        .textFieldStyle(.roundedBorder).frame(width: compact ? nil : 240)
                 }
                 SettingRow("Note") {
                     TextField("", text: Binding(get: { model.plan.workouts[wi].note }, set: { v in model.mutate { $0.plan.workouts[wi].note = v } }))
-                        .textFieldStyle(.roundedBorder).frame(width: 420)
+                        .textFieldStyle(.roundedBorder).frame(width: compact ? nil : 420)
                 }
                 ForEach(Array(model.plan.workouts[wi].exercises.enumerated()), id: \.element.id) { ei, pe in
                     ExerciseEditRow(wi: wi, ei: ei, count: model.plan.workouts[wi].exercises.count)
@@ -357,6 +373,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -581,6 +598,7 @@ struct SettingRow<Control: View>: View {
 
 struct ProfilesSection: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.compact) private var compact
     @State private var newName = ""
     @State private var newStart = Date()
     @State private var editing: String?
@@ -591,18 +609,22 @@ struct ProfilesSection: View {
         SettingsSection(title: "Profiles", detail: "Each profile is a whole Cairn: its own mountain, logs, quests and settings.") {
             ForEach(model.profiles.profiles) { p in
                 let active = p.id == model.profiles.active
-                HStack(spacing: 12) {
+                let nameRow = HStack(spacing: 12) {
                     Circle().fill(active ? Ink.red : Ink.sand).frame(width: 8, height: 8)
                     if editing == p.id {
-                        TextField("Name", text: $draft).textFieldStyle(.roundedBorder).frame(width: 200)
+                        TextField("Name", text: $draft).textFieldStyle(.roundedBorder).frame(width: compact ? nil : 200)
                             .onSubmit { model.renameProfile(p.id, to: draft); editing = nil }
-                        Button("Save") { model.renameProfile(p.id, to: draft); editing = nil }.buttonStyle(InkButtonStyle())
                     } else {
                         Text(p.name).font(Face.heading).foregroundStyle(Ink.ink)
                         if active { Text("in use").font(Face.small).foregroundStyle(Ink.ink2) }
                     }
-                    Spacer()
-                    Button("Rename") { draft = p.name; editing = p.id }.buttonStyle(InkButtonStyle(filled: false))
+                }
+                let buttons = HStack(spacing: 8) {
+                    if editing == p.id {
+                        Button("Save") { model.renameProfile(p.id, to: draft); editing = nil }.buttonStyle(InkButtonStyle())
+                    } else {
+                        Button("Rename") { draft = p.name; editing = p.id }.buttonStyle(InkButtonStyle(filled: false))
+                    }
                     if !active {
                         Button("Switch to") { model.switchProfile(p.id) }.buttonStyle(InkButtonStyle())
                         Button { removing = p } label: { Image(systemName: "trash") }
@@ -610,20 +632,44 @@ struct ProfilesSection: View {
                             .accessibilityLabel("Remove \(p.name)")
                     }
                 }
+                Group {
+                    if compact {
+                        VStack(alignment: .leading, spacing: 10) { nameRow; buttons }
+                    } else {
+                        HStack(spacing: 12) { nameRow; Spacer(); buttons }
+                    }
+                }
                 .padding(.vertical, 4)
             }
             Rule(seed: 70)
-            HStack(spacing: 12) {
-                TextField("New profile name", text: $newName).textFieldStyle(.roundedBorder).frame(width: 200)
-                Text("starts").font(Face.small).foregroundStyle(Ink.ink2)
-                DatePicker("", selection: $newStart, displayedComponents: .date).labelsHidden().fieldDatePicker().frame(width: 110)
-                Spacer()
-                Button("Create and switch") {
-                    model.createProfile(name: newName, start: newStart)
-                    newName = ""
+            if compact {
+                VStack(alignment: .leading, spacing: 10) {
+                    TextField("New profile name", text: $newName).textFieldStyle(.roundedBorder)
+                    HStack(spacing: 12) {
+                        Text("Starts").font(Face.small).foregroundStyle(Ink.ink2)
+                        DatePicker("", selection: $newStart, displayedComponents: .date).labelsHidden().fieldDatePicker()
+                        Spacer(minLength: 0)
+                    }
+                    Button("Create and switch") {
+                        model.createProfile(name: newName, start: newStart)
+                        newName = ""
+                    }
+                    .buttonStyle(InkButtonStyle())
+                    .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
-                .buttonStyle(InkButtonStyle())
-                .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+            } else {
+                HStack(spacing: 12) {
+                    TextField("New profile name", text: $newName).textFieldStyle(.roundedBorder).frame(width: 200)
+                    Text("starts").font(Face.small).foregroundStyle(Ink.ink2)
+                    DatePicker("", selection: $newStart, displayedComponents: .date).labelsHidden().fieldDatePicker().frame(width: 110)
+                    Spacer()
+                    Button("Create and switch") {
+                        model.createProfile(name: newName, start: newStart)
+                        newName = ""
+                    }
+                    .buttonStyle(InkButtonStyle())
+                    .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
             }
         }
         .confirmationDialog("Remove \(removing?.name ?? "")?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
